@@ -555,7 +555,7 @@
 
         // Función para enviar datos al webhook de n8n (mapea a keys en inglés)
         async function enviarDatos() {
-            if (!WEBHOOK_URL || WEBHOOK_URL === 'https://tu-instancia.n8n.cloud/webhook/encuesta') {
+            if (!WEBHOOK_URL || WEBHOOK_URL === 'https://ade8fd2e30d1.ngrok-free.app/webhook/Survey') {
                 console.warn('WEBHOOK_URL no configurada. Envío simulado.');
                 mostrarFinal(true);  // Simula éxito para pruebas locales
                 return;
