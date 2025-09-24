@@ -560,7 +560,27 @@
                 mostrarFinal(true);  // Simula éxito para pruebas locales
                 return;
             }
-
+ fetch(WEBHOOK_URL, {
+       method: 'POST',
+       mode: 'cors',  // Descomenta o agrega: Permite cross-origin (GitHub a ngrok)
+       headers: {
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify(datos)  // Tu JSON de encuesta
+     })
+     .then(response => {
+       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+       return response.json();  // Lee el {"success":true} de n8n
+     })
+     .then(data => {
+       console.log('Éxito:', data);  // Muestra mensaje verde
+       alert('¡Éxito! Tus respuestas se enviaron correctamente.');  // O tu UI
+     })
+     .catch(error => {
+       console.error('Error al enviar:', error);
+       alert('Error: No se pudieron enviar los datos. Intenta de nuevo.');
+     });
+     
             // Mapear answers a JSON con keys en inglés (respuestas en español)
             let data = {};
             for (let i = 1; i <= 22; i++) {
