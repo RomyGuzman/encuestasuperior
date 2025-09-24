@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Tu opinión y experiencia importan!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: #333;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.3rem; /* reducido en 3 puntos (antes 1.6rem) */
+        }
+        h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        h3 {
+            font-size: 1.1rem;
+            margin: 10px 0;
+            color: #2575fc;
+        }
+        .option {
+            display: block;
+            margin: 10px 0;
+            padding: 14px;
+            border: 2px solid #2575fc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            position: relative;
+            user-select: none;
+        }
+        .option:hover {
+            background: #2575fc;
+            color: white;
+        }
+        .option.selected {
+            background: #2575fc !important;
+            color: #fff !important;
+            border-color: #2575fc !important;
+        }
+        input[type="text"], input[type="number"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        input[type="radio"],
+        input[type="checkbox"] {
+            display: none;
+        }
+        button {
+            margin-top: 15px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+            color: white;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        .back-btn {
+            background: #ddd !important;
+            color: #333 !important;
+            margin-right: 10px;
+        }
+        .back-btn:hover {
+            background: #ccc !important;
+            transform: scale(1.02);
+        }
+        .progress-bar {
+            height: 8px;
+            background: #ddd;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 8px;
+            background: linear-gradient(135deg, #2575fc, #6a11cb);
+            width: 0;
+            transition: width 0.4s ease;
+        }
+        .final-message {
+            text-align: center;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        .final-message a {
+            color: #2575fc;
+            text-decoration: underline;
+        }
+        /* Estilos agregados para funcionalidades nuevas */
+        .otro-text {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+            font-size: 0.95rem;
+        }
+        .error-msg {
+            color: #ff0000;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .success-msg, .error-msg-final {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error-msg-final {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>¡Tu opinión y experiencia importan!</h1>
+        <div class="progress-bar"><div id="progress" class="progress"></div></div>
+        <div id="quiz"></div>
+    </div>
+    <script>
+        // Configuración: Reemplaza con tu URL de webhook de n8n
+        const WEBHOOK_URL = 'https://tu-instancia.n8n.cloud/webhook/encuesta';  // ¡Cambia esto!
+
+        // Preguntas de la encuesta
+        const questions = [
+            // 1. Datos generales
+            { pregunta: "1. Edad", tipo: "numero" },
+            { pregunta: "2. ¿Cuál es el ingreso económico aproximado de tu familia?", tipo: "opcion", opciones: ["Bajo", "Medio", "Alto"] },
+            { pregunta: "3. ¿A qué te dedicas actualmente?", tipo: "multiple", opciones: ["Trabajo", "Estudio", "Hago deporte", "Otro"] },
+            { pregunta: "4. ¿Qué tipo de trabajo tienes?", tipo: "opcion", opciones: ["Nocturno", "Diurno", "Rotativo", "No trabajo", "Otro"] },
+            // 2. Acceso y acercamiento al juego
+            { pregunta: "5. ¿Juegas actualmente?", tipo: "opcion", opciones: ["Sí", "No"] },
+            { pregunta: "6. ¿Qué te llevó a conocer el juego?", tipo: "texto" },
+            { pregunta: "7. ¿Qué tan accesible estuviste o estás a las plataformas de juego?", tipo: "opcion", opciones: ["Muy", "Poco", "Nada"] },
+            // Si la anterior es "Nada", salta a la pregunta 10
+            { pregunta: "8. ¿Cómo llegaste a las plataformas de juego?", tipo: "multiple", opciones: ["Yo solo", "Amigos", "Hijos", "Familia", "Compañeros de trabajo", "Anuncios en la web"] },
+            { pregunta: "9. ¿Tu entorno familiar está expuesto al juego?", tipo: "opcion", opciones: ["Sí", "No", "No se"] },
+            // 3. Experiencia personal con el juego
+            { pregunta: "10. ¿Sentís muchas ganas de jugar cuando no lo estás haciendo o cuando no se puede?", tipo: "opcion", opciones: ["Sí", "No"] },
+            { pregunta: "11. ¿Qué sentís cuando no podés jugar?", tipo: "texto" },
+            { pregunta: "12. ¿Cuánto tiempo semanal le dedicas al juego?", tipo: "opcion", opciones: ["1-5hs", "5-10hs", "10-15hs", "15-20hs", "20-30hs", "+36hs"] },
+            { pregunta: "13. ¿A partir de cuántas horas semanales consideras que el juego se vuelve adicción o consumo problemático?", tipo: "texto" },
+            { pregunta: "14. Si no tenés el recurso económico, ¿de dónde sacás plata para jugar?", tipo: "texto" },
+            // 4. Consecuencias
+            { pregunta: "15. ¿Has tenido problemas en el trabajo por el juego?", tipo: "multiple", opciones: ["Ausentismo", "Tardanza", "Desgano", "Accidente", "Otro", "No trabajo"] },
+            { pregunta: "16. ¿En tu familia hay adicciones (de cualquier índole)?", tipo: "opcion", opciones: ["Sí", "No"] },
+            { pregunta: "17. Si querés, contá brevemente sobre adicciones en tu familia (opcional)", tipo: "texto", opcional: true },
+            // 5. Percepción de la adicción
+            { pregunta: "18. ¿Te considerás adicto al juego?", tipo: "opcion", opciones: ["Sí", "No"] },
+            { pregunta: "19. ¿Cómo te diste cuenta?", tipo: "texto" },
+            { pregunta: "20. Si reconociste una adicción, ¿qué hacés para afrontarla?", tipo: "texto" },
+            { pregunta: "21. ¿Por qué jugás?", tipo: "multiple", opciones: ["Me distrae", "Es económicamente fructífero", "Por diversión", "Por la recompensa", "Por soledad", "Otro"] },
+            // 6. Causa raíz de la adicción
+            { pregunta: "22. ¿Qué factor principal creés que influyó en que empieces a jugar?", tipo: "multiple", opciones: ["Estrés o problemas personales", "Dinero rápido", "Influencia de amigos/familia", "Aburrimiento o falta de actividades", "Publicidad/redes sociales", "Otro"] }
+        ];
+
+        // Mapeo de preguntas (1-22) a keys en inglés para el JSON/BD
+        const fieldMapping = {
+            1: 'age',
+            2: 'family_income_level',
+            3: 'current_activities',
+            4: 'work_type',
+            5: 'currently_playing',
+            6: 'how_discovered_game',
+            7: 'accessibility_to_platforms',
+            8: 'how_arrived_to_platforms',
+            9: 'family_exposed_to_gambling',
+            10: 'urge_to_play',
+            11: 'feelings_when_cant_play',
+            12: 'weekly_playing_time',
+            13: 'hours_for_addiction_threshold',
+            14: 'source_of_money_for_playing',
+            15: 'work_problems_due_to_gambling',
+            16: 'family_addictions',
+            17: 'family_addictions_description',
+            18: 'self_considered_addicted',
+            19: 'how_realized_addiction',
+            20: 'how_coping_with_addiction',
+            21: 'reasons_for_playing',
+            22: 'main_factor_starting_gambling'
+        };
+
+        // Títulos de sección por grupo de preguntas
+        const sectionTitles = [
+            { idx: 0, title: "1. Datos generales" },
+            { idx: 4, title: "2. Acceso y acercamiento al juego" },
+            { idx: 10, title: "3. Experiencia personal con el juego" },
+            { idx: 15, title: "4. Consecuencias" },
+            { idx: 18, title: "5. Percepción de la adicción" },
+            { idx: 22, title: "6. Causa raíz de la adicción" }
+        ];
+
+        let currentQuestion = 0;
+        let answers = {};
+        let envioExitoso = false;
+
+        function updateProgress() {
+            let percent = ((currentQuestion) / questions.length) * 100;
+            document.getElementById("progress").style.width = percent + "%";
+        }
+
+        function renderQuestion() {
+            // Salto de lógica: si pregunta 7 (key 7) es "Nada", salta a pregunta 10 (índice 9)
+            if (currentQuestion === 7 && answers[7] === "Nada") {
+                currentQuestion = 9;
+            }
+            if (currentQuestion >= questions.length) {
+                enviarDatos();
+                return;
+            }
+            updateProgress();
+            let q = questions[currentQuestion];
+
+            // Verifica si hay título de sección
+            let sectionTitle = "";
+            for (let s of sectionTitles) {
+                if (currentQuestion === s.idx) {
+                    sectionTitle = `<h3 style="font-size:1.1rem; color:#2575fc; margin-bottom:10px;">${s.title}</h3>`;
+                    break;
+                }
+            }
+
+            let html = "";
+
+            // Introducción solo en la primera pregunta
+            if (currentQuestion === 0) {
+                html += `<div style="font-size:1.1rem; margin-bottom:20px; color:#444;">
+                    El objetivo es identificar patrones de juego para relacionar las variables y su impacto en la vida y permitir la prevención de la ludopatía, valoramos la privacidad de las personas por lo que está encuesta es anonima
+                </div>`;
+            }
+            html += sectionTitle;
+            html += `<div style="font-size:1.15rem; margin-bottom:20px; color:#444;">${q.pregunta}</div>`;
+
+            let hasOtroSelected = false;
+            let otroVal = "";
+
+            // Opciones únicas
+            if (q.tipo === "opcion") {
+                q.opciones.forEach((opt, i) => {
+                    html += `<div class="option" onclick="seleccionarOpcion(${currentQuestion}, ${i})" id="option_${currentQuestion}_${i}">
+                        <label>${opt}</label>
+                    </div>`;
+                });
+                // Manejo de "Otro" para opcion
+                if (q.opciones.includes("Otro")) {
+                    let val = answers[currentQuestion + 1];
+                    hasOtroSelected = val && val.startsWith("Otro:");
+                    if (hasOtroSelected) {
+                        otroVal = val.split(":")[1] || "";
+                    }
+                    if (hasOtroSelected) {
+                        html += `
+                            <div class="otro-text">Especifica "Otro" (máx. 140 caracteres):</div>
+                            <textarea id="otroInput${currentQuestion}" maxlength="140" rows="3" placeholder="Describe tu respuesta aquí...">${otroVal}</textarea>
+                            <div class="error-msg" id="errorOtro${currentQuestion}">Por favor, completa la descripción de "Otro" (al menos 1 carácter).</div>
+                        `;
+                    }
+                }
+                html += `<div class="button-group">
+                    ${currentQuestion > 0 ? `<button class="back-btn" onclick="volverAtras()">Atrás</button>` : ""}
+                    <button onclick="nextObligatoria()">Siguiente</button>
+                </div>`;
+            }
+            // Opciones múltiples
+            else if (q.tipo === "multiple") {
+                q.opciones.forEach((opt, i) => {
+                    html += `<div class="option" onclick="seleccionarMultiple(${currentQuestion}, ${i})" id="option_${currentQuestion}_${i}">
+                        <label>${opt}</label>
+                    </div>`;
+                });
+                             // Manejo de "Otro" para multiple
+                if (q.opciones.includes("Otro")) {
+                    let val = answers[currentQuestion + 1] || [];
+                    let hasOtroSelected = Array.isArray(val) && val.some(item => item.startsWith("Otro:"));
+                    let otroVal = "";
+                    if (hasOtroSelected) {
+                        let otroItem = val.find(item => item.startsWith("Otro:"));
+                        otroVal = otroItem ? otroItem.split(":")[1] || "" : "";
+                    }
+                    if (hasOtroSelected) {
+                        html += `
+                            <div class="otro-text">Especifica "Otro" (máx. 140 caracteres):</div>
+                            <textarea id="otroInput${currentQuestion}" maxlength="140" rows="3" placeholder="Describe tu respuesta aquí...">${otroVal}</textarea>
+                            <div class="error-msg" id="errorOtro${currentQuestion}">Por favor, completa la descripción de "Otro" (al menos 1 carácter).</div>
+                        `;
+                    }
+                }
+                html += `<div class="button-group">
+                    ${currentQuestion > 0 ? `<button class="back-btn" onclick="volverAtras()">Atrás</button>` : ""}
+                    <button onclick="nextMultipleObligatoria()">Siguiente</button>
+                </div>`;
+            }
+            // Campo numérico (edad)
+            else if (q.tipo === "numero") {
+                let numVal = answers[currentQuestion + 1] || "";
+                html += `<input type="number" id="numInput${currentQuestion}" min="0" max="120" value="${numVal}" placeholder="Ingresa tu edad">`;
+                html += `<div class="button-group">
+                    ${currentQuestion > 0 ? `<button class="back-btn" onclick="volverAtras()">Atrás</button>` : ""}
+                    <button onclick="nextNumeroObligatoria()">Siguiente</button>
+                </div>`;
+            }
+            // Campo texto
+            else if (q.tipo === "texto") {
+                let textVal = answers[currentQuestion + 1] || "";
+                let placeholder = q.opcional ? "Opcional: Describe aquí..." : "Describe tu respuesta aquí... (máx. 140 caracteres)";
+                html += `<textarea id="textInput${currentQuestion}" maxlength="140" rows="3" placeholder="${placeholder}">${textVal}</textarea>`;
+                html += `<div class="button-group">
+                    ${currentQuestion > 0 ? `<button class="back-btn" onclick="volverAtras()">Atrás</button>` : ""}
+                    <button onclick="${q.opcional ? 'nextTextoObligatoria()' : 'nextTextoObligatoria()'}">Siguiente</button>
+                </div>`;
+            }
+
+            document.getElementById("quiz").innerHTML = html;
+            marcarSeleccion();  // Marcar selecciones previas al renderizar
+        }
+
+        // Selección opción única
+        function seleccionarOpcion(qIdx, optIdx) {
+            let q = questions[qIdx];
+            // Deseleccionar todas
+            document.querySelectorAll(`#option_${qIdx}_`).forEach(el => el.classList.remove('selected'));
+            let el = document.getElementById(`option_${qIdx}_${optIdx}`);
+            if (el) el.classList.add('selected');
+            let opt = q.opciones[optIdx];
+            let key = qIdx + 1;
+            answers[key] = opt;
+
+            if (opt === "Otro") {
+                // Si se selecciona "Otro", preparar para textarea (re-render mostrará)
+                answers[key] = "Otro:";
+            } else if (answers[key] && answers[key].startsWith("Otro:")) {
+                // Si cambian de "Otro" a otra, remover descripción
+                delete answers[key];
+                answers[key] = opt;
+            }
+            // Re-render si es "Otro" para mostrar textarea inmediatamente
+            if (opt === "Otro") {
+                renderQuestion();
+            }
+        }
+
+        // Selección opción múltiple
+        function seleccionarMultiple(qIdx, optIdx) {
+            let el = document.getElementById(`option_${qIdx}_${optIdx}`);
+            if (!el) return;
+            el.classList.toggle('selected');
+            let q = questions[qIdx];
+            let opt = q.opciones[optIdx];
+            let key = qIdx + 1;
+            if (!answers[key]) answers[key] = [];
+
+            let arr = answers[key];
+            let idx = arr.indexOf(opt);
+
+            if (opt === "Otro") {
+                if (el.classList.contains('selected')) {
+                    // Seleccionado: agregar "Otro:" provisional
+                    if (idx === -1) arr.push("Otro:");
+                    // Re-render para mostrar textarea
+                    renderQuestion();
+                } else {
+                    // Deseleccionado: remover "Otro:" y cualquier descripción
+                    if (idx > -1) arr.splice(idx, 1);
+                    let otroIdx = arr.findIndex(item => item.startsWith("Otro:"));
+                    if (otroIdx > -1) arr.splice(otroIdx, 1);
+                }
+            } else {
+                if (el.classList.contains('selected')) {
+                    if (idx === -1) arr.push(opt);
+                } else {
+                    if (idx > -1) arr.splice(idx, 1);
+                }
+            }
+        }
+
+        // Validación y avance opción única (actualizada para "Otro")
+        function nextObligatoria() {
+            let key = currentQuestion + 1;
+            let seleccion = answers[key];
+            if (!seleccion) {
+                alert("Por favor selecciona una opción");
+                return;
+            }
+            // Si es "Otro", validar textarea
+            if (seleccion.startsWith("Otro:")) {
+                let textarea = document.getElementById(`otroInput${currentQuestion}`);
+                if (!textarea || !textarea.value.trim()) {
+                    let errorEl = document.getElementById(`errorOtro${currentQuestion}`);
+                    if (errorEl) errorEl.style.display = 'block';
+                    alert("Por favor, completa la descripción de 'Otro' (al menos 1 carácter).");
+                    return;
+                }
+                // Guardar con descripción
+                answers[key] = `Otro: ${textarea.value.trim()}`;
+                let errorEl = document.getElementById(`errorOtro${currentQuestion}`);
+                if (errorEl) errorEl.style.display = 'none';
+            }
+            currentQuestion++;
+            renderQuestion();
+        }
+
+        // Validación y avance opción múltiple (actualizada para "Otro")
+        function nextMultipleObligatoria() {
+            let key = currentQuestion + 1;
+            let arr = answers[key] || [];
+            if (arr.length === 0) {
+                alert("Selecciona al menos una opción");
+                return;
+            }
+            // Si "Otro" está en el array, validar textarea
+            let hasOtro = arr.some(item => item.startsWith("Otro:"));
+            if (hasOtro) {
+                let textarea = document.getElementById(`otroInput${currentQuestion}`);
+                if (!textarea || !textarea.value.trim()) {
+                    let errorEl = document.getElementById(`errorOtro${currentQuestion}`);
+                    if (errorEl) errorEl.style.display = 'block';
+                    alert("Por favor, completa la descripción de 'Otro' (al menos 1 carácter).");
+                    return;
+                }
+                // Actualizar el item "Otro:" con la descripción
+                let otroIdx = arr.findIndex(item => item.startsWith("Otro:"));
+                if (otroIdx > -1) {
+                    arr[otroIdx] = `Otro: ${textarea.value.trim()}`;
+                }
+                let errorEl = document.getElementById(`errorOtro${currentQuestion}`);
+                if (errorEl) errorEl.style.display = 'none';
+            }
+            currentQuestion++;
+            renderQuestion();
+        }
+
+        // Validación y avance campo numérico
+        function nextNumeroObligatoria() {
+            let input = document.getElementById(`numInput${currentQuestion}`);
+            let val = input ? input.value.trim() : '';
+            if (!val || parseInt(val, 10) < 18 || parseInt(val, 10) > 99) {
+                alert("Por favor ingresa una edad válida (0-120)");
+                return;
+            }
+            answers[currentQuestion + 1] = parseInt(val, 10);
+            currentQuestion++;
+            renderQuestion();
+        }
+
+        // Validación y avance campo texto
+        function nextTextoObligatoria() {
+            let input = document.getElementById(`textInput${currentQuestion}`);
+            let val = input ? input.value.trim() : '';
+            let q = questions[currentQuestion];
+            let opcional = q.opcional || false;
+            if (!val && !opcional) {
+                alert("Por favor escribe tu respuesta (máx. 140 caracteres)");
+                return;
+            }
+            answers[currentQuestion + 1] = val || "";  // Vacío si opcional y no llenado
+            currentQuestion++;
+            renderQuestion();
+        }
+
+        // Marcar selección visual (actualizada para "Otro" y al volver atrás)
+        function marcarSeleccion() {
+            let q = questions[currentQuestion];
+            let key = currentQuestion + 1;
+            let val = answers[key];
+
+            if (q.tipo === "opcion" && val) {
+                q.opciones.forEach((opt, i) => {
+                    let el = document.getElementById(`option_${currentQuestion}_${i}`);
+                    if (el) {
+                        if (val === opt || (opt === "Otro" && val.startsWith("Otro:"))) {
+                            el.classList.add('selected');
+                        } else {
+                            el.classList.remove('selected');
+                        }
+                    }
+                });
+            } else if (q.tipo === "multiple" && val && Array.isArray(val)) {
+                q.opciones.forEach((opt, i) => {
+                    let el = document.getElementById(`option_${currentQuestion}_${i}`);
+                    if (el) {
+                        let isSelected = val.includes(opt) || (opt === "Otro" && val.some(item => item.startsWith("Otro:")));
+                        if (isSelected) {
+                            el.classList.add('selected');
+                        } else {
+                            el.classList.remove('selected');
+                        }
+                    }
+                });
+            }
+            // Para num/texto, los valores ya se cargan en los inputs en renderQuestion()
+        }
+
+        // Volver atrás (actualizado para manejar salto lógico)
+        function volverAtras() {
+            if (currentQuestion === 0) return;
+            // Si estamos en pregunta 9 (después del salto de pregunta 8) y pregunta 7 fue "Nada", volver a 7
+            if (currentQuestion === 9 && answers[7] === "Nada") {
+                currentQuestion = 7;
+            } else {
+                currentQuestion = Math.max(0, currentQuestion - 1);
+            }
+            renderQuestion();  // Re-render para mostrar selecciones previas y textarea si aplica
+        }
+
+        // Función para enviar datos al webhook de n8n (mapea a keys en inglés)
+        async function enviarDatos() {
+            if (!WEBHOOK_URL || WEBHOOK_URL === 'https://tu-instancia.n8n.cloud/webhook/encuesta') {
+                console.warn('WEBHOOK_URL no configurada. Envío simulado.');
+                mostrarFinal(true);  // Simula éxito para pruebas locales
+                return;
+            }
+
+            // Mapear answers a JSON con keys en inglés (respuestas en español)
+            let data = {};
+            for (let i = 1; i <= 22; i++) {
+                let englishKey = fieldMapping[i];
+                if (englishKey) {
+                    // Manejar salto lógico: pregunta 8 se salta si 7 es "Nada"
+                    if (i === 8 && answers[7] === "Nada") {
+                        data[englishKey] = null;
+                    } else {
+                        let rawValue = answers[i];
+                        if (rawValue === undefined) {
+                            data[englishKey] = null;  // No respondido
+                        } else if (Array.isArray(rawValue)) {
+                            data[englishKey] = rawValue;  // Array para preguntas múltiples (ej. ["Trabajo", "Otro: descripción"])
+                        } else if (typeof rawValue === 'number') {
+                            data[englishKey] = rawValue;  // Número para edad
+                        } else {
+                            data[englishKey] = rawValue || "";  // String en español, vacío si opcional
+                        }
+                    }
+                }
+            }
+            data.timestamp = new Date().toISOString();  // Agrega timestamp
+
+            // Log para depuración (ver en consola F12)
+            console.log('JSON enviado (keys en inglés, respuestas en español):', data);
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                // Asumimos que n8n responde con algo como { "success": true } o similar
+                if (result && (result.success || response.ok)) {
+                    envioExitoso = true;
+                    mostrarFinal(true);
+                } else {
+                    throw new Error('Respuesta del servidor no indica éxito');
+                }
+            } catch (error) {
+                console.error('Error al enviar datos:', error);
+                envioExitoso = false;
+                mostrarFinal(false, error.message);
+            }
+        }
+
+        // Mensaje final (actualizado con tus recursos de ayuda)
+        function mostrarFinal(success = null, errorMsg = '') {
+            let html = `
+                <h2>Gracias por responder esta encuesta</h2>
+                <div class="final-message">
+                    <p>Si querés o necesitás más información sobre el tema podés:</p>
+            `;
+
+            // Insertar mensaje de éxito o error aquí, después del <p> introductorio
+            if (success === true) {
+                html += `
+                    <div class="success-msg">
+                        <strong>¡Éxito!</strong> Tus respuestas se enviaron correctamente a nuestra base de datos.
+                    </div>
+                `;
+            } else if (success === false) {
+                html += `
+                    <div class="error-msg-final">
+                        <strong>Error en el envío:</strong> ${errorMsg}. 
+                        <p>No te preocupes, puedes reintentar o contactar al administrador si persiste.</p>
+                        <button onclick="enviarDatos()" style="margin: 5px;">Reintentar Envío</button>
+                    </div>
+                `;
+            }
+
+            html += `
+                    <ul style="text-align:left;">
+                        <li>Ingresar a <a href="https://www.saberjugar.gob.ar" target="_blank">https://www.saberjugar.gob.ar</a></li>
+                        <li>Centros de ayuda municipal en Chascomús:</li>
+                        <ul style="text-align:left; margin-left: 20px; list-style-type: disc;">
+                            <li>Centro de Día Chascomús, Dirección Carmona 36, Barrio 30 de Mayo, Tel: 02241-409070, Horarios de Atención de Lunes a Viernes de 08 a 14hs.</li>
+                            <li>Centro de Prevención de las Adicciones, Carmona 36, Barrio 30 de Mayo, Horarios de Atención de 09 a 14 hs, Tel: 02241-400278.</li>
+                        </ul>
+                        <li>Por Urgencias llamar al <b>107</b></li>
+                    </ul>
+                    ${success === false ? '<button onclick="location.reload()" style="margin-top: 10px; background: #ddd; color: #333; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;">Recargar y Responder de Nuevo</button>' : ''}
+                </div>
+            `;
+
+            document.getElementById("quiz").innerHTML = html;
+            // Actualizar progreso al 100%
+            if (document.getElementById("progress")) {
+                document.getElementById("progress").style.width = "100%";
+            }
+        }
+
+        // Inicializar la encuesta al cargar la página
+        renderQuestion();
+    </script>
+</body>
+</html>
