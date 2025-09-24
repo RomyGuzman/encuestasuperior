@@ -553,88 +553,74 @@
             renderQuestion();  // Re-render para mostrar selecciones previas y textarea si aplica
         }
 
-        // Función para enviar datos al webhook de n8n (mapea a keys en inglés)
-        async function enviarDatos() {
-            if (!WEBHOOK_URL || WEBHOOK_URL === 'https://eb6d59a43817.ngrok-free.app/webhook/Survey') {
-                console.warn('WEBHOOK_URL no configurada. Envío simulado.');
-                mostrarFinal(true);  // Simula éxito para pruebas locales
-                return;
-            }
- fetch(WEBHOOK_URL, {
-       method: 'POST',
-       mode: 'cors',  // Descomenta o agrega: Permite cross-origin (GitHub a ngrok)
-       headers: {
-         'Content-Type': 'application/json',
-       },
-       body: JSON.stringify(datos)  // Tu JSON de encuesta
-     })
-     .then(response => {
-       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-       return response.json();  // Lee el {"success":true} de n8n
-     })
-     .then(data => {
-       console.log('Éxito:', data);  // Muestra mensaje verde
-       alert('¡Éxito! Tus respuestas se enviaron correctamente.');  // O tu UI
-     })
-     .catch(error => {
-       console.error('Error al enviar:', error);
-       alert('Error: No se pudieron enviar los datos. Intenta de nuevo.');
-     });
+             // Función para enviar datos al webhook de n8n (mapea a keys en inglés)
+     async function enviarDatos() {
+         // Mapear answers a JSON con keys en inglés (respuestas en español) —esto va PRIMERO
+         let data = {};
+         for (let i = 1; i <= 22; i++) {
+             let englishKey = fieldMapping[i];
+             if (englishKey) {
+                 // Manejar salto lógico: pregunta 8 se salta si 7 es "Nada"
+                 if (i === 8 && answers[7] === "Nada") {
+                     data[englishKey] = null;
+                 } else {
+                     let rawValue = answers[i];
+                     if (rawValue === undefined) {
+                         data[englishKey] = null;  // No respondido
+                     } else if (Array.isArray(rawValue)) {
+                         data[englishKey] = rawValue;  // Array para preguntas múltiples (ej. ["Trabajo", "Otro: descripción"])
+                     } else if (typeof rawValue === 'number') {
+                         data[englishKey] = rawValue;  // Número para edad
+                     } else {
+                         data[englishKey] = rawValue || "";  // String en español, vacío si opcional
+                     }
+                 }
+             }
+         }
+         data.timestamp = new Date().toISOString();  // Agrega timestamp
+
+         // Log para depuración (ver en consola F12)
+         console.log('JSON enviado (keys en inglés, respuestas en español):', data);
+
+         // Verificar WEBHOOK_URL (sin simulación —removido para producción)
+         if (!WEBHOOK_URL) {
+             console.error('WEBHOOK_URL no configurada.');
+             mostrarFinal(false, 'URL del servidor no configurada.');
+             return;
+         }
+
+         try {
+             const response = await fetch(WEBHOOK_URL, {
+                 method: 'POST',
+                 mode: 'cors',  // Para cross-origin (GitHub Pages a ngrok)
+                 headers: {
+                     'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify(data)
+             });
+
+             if (!response.ok) {
+                 throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+             }
+
+             const result = await response.json();
+             // Asumimos que n8n responde con { "success": true } o similar
+             if (result && (result.success || response.ok)) {
+                 envioExitoso = true;
+                 console.log('Éxito real:', result);  // Log para confirmar en consola
+                 mostrarFinal(true);
+             } else {
+                 throw new Error('Respuesta del servidor no indica éxito');
+             }
+         } catch (error) {
+             console.error('Error al enviar datos:', error);
+             envioExitoso = false;
+             mostrarFinal(false, error.message);
+         }
+     }
      
-            // Mapear answers a JSON con keys en inglés (respuestas en español)
-            let data = {};
-            for (let i = 1; i <= 22; i++) {
-                let englishKey = fieldMapping[i];
-                if (englishKey) {
-                    // Manejar salto lógico: pregunta 8 se salta si 7 es "Nada"
-                    if (i === 8 && answers[7] === "Nada") {
-                        data[englishKey] = null;
-                    } else {
-                        let rawValue = answers[i];
-                        if (rawValue === undefined) {
-                            data[englishKey] = null;  // No respondido
-                        } else if (Array.isArray(rawValue)) {
-                            data[englishKey] = rawValue;  // Array para preguntas múltiples (ej. ["Trabajo", "Otro: descripción"])
-                        } else if (typeof rawValue === 'number') {
-                            data[englishKey] = rawValue;  // Número para edad
-                        } else {
-                            data[englishKey] = rawValue || "";  // String en español, vacío si opcional
-                        }
-                    }
-                }
-            }
-            data.timestamp = new Date().toISOString();  // Agrega timestamp
-
-            // Log para depuración (ver en consola F12)
-            console.log('JSON enviado (keys en inglés, respuestas en español):', data);
-
-            try {
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                // Asumimos que n8n responde con algo como { "success": true } o similar
-                if (result && (result.success || response.ok)) {
-                    envioExitoso = true;
-                    mostrarFinal(true);
-                } else {
-                    throw new Error('Respuesta del servidor no indica éxito');
-                }
-            } catch (error) {
-                console.error('Error al enviar datos:', error);
-                envioExitoso = false;
-                mostrarFinal(false, error.message);
-            }
-        }
+     
+       
 
         // Mensaje final (actualizado con tus recursos de ayuda)
         function mostrarFinal(success = null, errorMsg = '') {
