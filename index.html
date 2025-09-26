@@ -553,7 +553,7 @@
             renderQuestion();  // Re-render para mostrar selecciones previas y textarea si aplica
         }
 
-      // Función para enviar datos al webhook de n8n (mapea a keys en inglés)
+     // Función para enviar datos al webhook de n8n (mapea a keys en inglés)
 async function enviarDatos() {
     // Mapear answers a JSON con keys en inglés (respuestas en español) —esto va PRIMERO
     let data = {};
@@ -582,7 +582,7 @@ async function enviarDatos() {
     // Log para depuración (ver en consola F12)
     console.log('JSON enviado (keys en inglés, respuestas en español):', data);
 
-    // Verificar WEBHOOK_URL
+    // Verificar WEBHOOK_URL (sin simulación —removido para producción)
     if (!WEBHOOK_URL) {
         console.error('WEBHOOK_URL no configurada.');
         mostrarFinal(false, 'URL del servidor no configurada.');
@@ -590,40 +590,42 @@ async function enviarDatos() {
     }
 
     try {
+        const controller = new AbortController();  // Para timeout opcional
+        const timeoutId = setTimeout(() => controller.abort(), 10000);  // 10s timeout
+
         const response = await fetch(WEBHOOK_URL, {
             method: 'POST',
-            mode: 'no-cors',  // Fallback a no-cors para evitar bloqueos CORS; el POST llega, pero respuesta opaque
+            mode: 'no-cors',  // CLAVE: Cambiado a 'no-cors' para evitar CORS y status 0. POST llega al servidor.
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: controller.signal
         });
 
-        // Con 'no-cors', response.ok es siempre true, y status=0 (opaque). Asumimos éxito si no hay error en fetch.
-        // Si quieres verificar respuesta, cambia a 'cors' UNA VEZ que configures CORS en n8n.
-        console.log('Fetch completado (status:', response.status, 'type:', response.type, ')');
+        clearTimeout(timeoutId);
 
-        // Para 'no-cors': Asumir éxito (el servidor recibe los datos).
-        // Si cambias a 'cors' más adelante:
-        // if (!response.ok) { throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`); }
-        // let result = await response.json();
-        // if (!result.success) { throw new Error('Servidor rechazó datos'); }
+        // Con 'no-cors': response.type = 'opaque', status = 0, pero ok = true. No throw, asumimos éxito.
+        // El servidor (n8n) recibe los datos; verifica logs allí para confirmar.
+        console.log('Fetch completado exitosamente (modo no-cors: POST enviado, respuesta opaque. Status:', response.status, 'Type:', response.type, ')');
+        console.log('Verifica en n8n si el JSON llegó al workflow.');
 
         envioExitoso = true;
-        console.log('Envío exitoso asumido (verifica logs de n8n para confirmar llegada de datos).');
-        mostrarFinal(true);
+        mostrarFinal(true);  // Muestra mensaje de éxito
 
     } catch (error) {
         console.error('Error al enviar datos:', error);
         let errorMsg = error.message;
 
-        // Manejos específicos
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            errorMsg = 'Error de red: No se pudo conectar al servidor. Verifica internet o el webhook.';
-        } else if (error.message.includes('CORS') || error.message.includes('failed to fetch')) {
-            errorMsg = 'Bloqueo CORS: Configura headers en n8n (Access-Control-Allow-Origin: *) o usa un proxy.';
-        } else if (error.status === 0) {
-            errorMsg = 'Request bloqueada (status 0). Prueba con Postman para verificar el webhook.';
+        // Manejos específicos para errores comunes
+        if (error.name === 'AbortError') {
+            errorMsg = 'Timeout: El servidor tardó demasiado en responder. Intenta de nuevo.';
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMsg = 'Error de red: Verifica tu conexión a internet o el webhook.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMsg = 'No se pudo conectar al servidor. Prueba con Postman para verificar la URL.';
+        } else {
+            errorMsg = 'Error inesperado: ' + errorMsg;
         }
 
         envioExitoso = false;
@@ -631,7 +633,6 @@ async function enviarDatos() {
     }
 }
 
-     
      
        
 
