@@ -592,7 +592,7 @@
          try {
              const response = await fetch(WEBHOOK_URL, {
                  method: 'POST',
-                 mode: 'cors',  // Para cross-origin (GitHub Pages a ngrok)
+                 mode: 'no-cors',  // verifica n8n
                  headers: {
                      'Content-Type': 'application/json',
                  },
